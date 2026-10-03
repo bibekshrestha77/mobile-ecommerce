@@ -1,5 +1,6 @@
 import type { Product } from "../../api/product.api";
 import ProductCard from "./product-card";
+import type { CSSProperties } from "react";
 
 interface ProductGridProps {
   products: Product[];
@@ -8,23 +9,16 @@ interface ProductGridProps {
 }
 
 const ProductGrid = ({ products, loading = false, columns = 4 }: ProductGridProps) => {
-  const gridCols = {
-    2: "grid-cols-1 sm:grid-cols-2",
-    3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-    4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-    5: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
-  };
-
   if (loading) {
     return (
-      <div className={`grid ${gridCols[columns]} gap-6`}>
-        {[...Array(8)].map((_, i) => (
-          <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse">
-            <div className="aspect-square bg-gray-200" />
-            <div className="p-4 space-y-3">
-              <div className="h-4 bg-gray-200 rounded w-3/4" />
-              <div className="h-4 bg-gray-200 rounded w-1/2" />
-              <div className="h-6 bg-gray-200 rounded w-1/3" />
+      <div className="product-grid" style={{ "--columns": columns } as CSSProperties} aria-label="Loading products">
+        {Array.from({ length: 8 }, (_, index) => (
+          <div key={index} className="product-card">
+            <div className="product-media product-skeleton" />
+            <div className="product-info">
+              <div className="product-skeleton-line short" />
+              <div className="product-skeleton-line" />
+              <div className="product-skeleton-line price" />
             </div>
           </div>
         ))}
@@ -34,16 +28,15 @@ const ProductGrid = ({ products, loading = false, columns = 4 }: ProductGridProp
 
   if (products.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="text-gray-400 text-6xl mb-4">📦</div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
-        <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+      <div className="empty-state">
+        <h3>Nothing here just yet</h3>
+        <p>Try another search or browse the full collection.</p>
       </div>
     );
   }
 
   return (
-    <div className={`grid ${gridCols[columns]} gap-6`}>
+    <div className="product-grid" style={{ "--columns": columns } as CSSProperties}>
       {products.map((product) => (
         <ProductCard key={product._id} product={product} />
       ))}

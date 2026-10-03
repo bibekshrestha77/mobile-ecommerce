@@ -5,14 +5,15 @@ type Props = {
   children: ReactNode;
 };
 
+const isApiResponseError = (error: unknown): error is { status?: unknown; message?: unknown } =>
+  typeof error === "object" && error !== null && "status" in error;
+
 const client = new QueryClient({
   defaultOptions: {
     queries: {
-      // Don't retry auth errors (401) — retrying won't help without a login
-      retry: (failureCount, error: any) => {
-        if (error?.status === "fail" && /unauthorized/i.test(error?.message || "")) {
-          return false;
-        }
+      // Backend error responses won't improve on retry; retry transport failures only.
+      retry: (failureCount, error: unknown) => {
+        if (isApiResponseError(error) && (error.status === "fail" || error.status === "error")) return false;
         return failureCount < 2;
       },
       staleTime: 30_000,

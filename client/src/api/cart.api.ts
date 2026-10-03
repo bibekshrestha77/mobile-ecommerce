@@ -1,4 +1,10 @@
+import axios from "axios";
 import instance from "./index";
+
+const rethrowApiError = (error: unknown): never => {
+  if (axios.isAxiosError(error)) throw error.response?.data ?? error;
+  throw error;
+};
 
 // Cart types
 export interface CartItem {
@@ -51,8 +57,8 @@ export const addToCart = async (
   try {
     const response = await instance.post("/cart", { product_id: productId, quantity });
     return response.data;
-  } catch (error: any) {
-    throw error.response?.data || error;
+  } catch (error: unknown) {
+    return rethrowApiError(error);
   }
 };
 
@@ -61,9 +67,28 @@ export const getCart = async (): Promise<CartResponse> => {
   try {
     const response = await instance.get("/cart");
     return response.data;
-  } catch (error: any) {
-    throw error.response?.data || error;
+  } catch (error: unknown) {
+    return rethrowApiError(error);
   }
+};
+
+/** Add a quantity to the existing line, accounting for the API's set-quantity behavior. */
+export const addCartQuantity = async (
+  productId: string,
+  quantity: number = 1,
+  stockLimit?: number
+): Promise<CartResponse> => {
+  const cart = await getCart();
+  const existingQuantity = cart.data.items.find(
+    (item) => item.product?._id === productId
+  )?.quantity ?? 0;
+  const nextQuantity = existingQuantity + quantity;
+
+  if (stockLimit !== undefined && nextQuantity > stockLimit) {
+    throw new Error(`Only ${stockLimit} of this item are available.`);
+  }
+
+  return addToCart(productId, nextQuantity);
 };
 
 // Remove item from cart
@@ -71,8 +96,8 @@ export const removeFromCart = async (productId: string): Promise<CartResponse> =
   try {
     const response = await instance.post("/cart/remove", { product: productId });
     return response.data;
-  } catch (error: any) {
-    throw error.response?.data || error;
+  } catch (error: unknown) {
+    return rethrowApiError(error);
   }
 };
 
@@ -81,7 +106,7 @@ export const clearCart = async (): Promise<CartResponse> => {
   try {
     const response = await instance.post("/cart/clear");
     return response.data;
-  } catch (error: any) {
-    throw error.response?.data || error;
+  } catch (error: unknown) {
+    return rethrowApiError(error);
   }
 };

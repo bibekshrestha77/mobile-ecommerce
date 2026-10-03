@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FiUser, FiMail, FiPhone, FiEdit2, FiSave, FiX } from "react-icons/fi";
-import { getMe, updateProfile } from "../api/auth.api";
+import { FiUser, FiMail, FiPhone, FiEdit2, FiSave, FiX, FiLogOut } from "react-icons/fi";
+import { Link, useNavigate } from "react-router";
+import { getMe, logout, updateProfile } from "../api/auth.api";
+import { getOrders } from "../api/order.api";
+import { getWishlist } from "../api/wishlist.api";
 import NavBar from "../components/header";
 import AuthRequired, { isAuthError } from "../components/auth-required";
 import toast from "react-hot-toast";
@@ -9,6 +12,7 @@ import { mediaUrl } from "../utils/media";
 
 const ProfilePage = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     first_name: "",
@@ -21,19 +25,8 @@ const ProfilePage = () => {
     queryKey: ["profile"],
     queryFn: getMe,
   });
-
-  // Populate form when profile data first loads (or refreshes while not editing)
-  useEffect(() => {
-    const user = data?.data;
-    if (user) {
-      setFormData({
-        first_name: user.first_name || "",
-        last_name: user.last_name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-      });
-    }
-  }, [data]);
+  const ordersQuery = useQuery({ queryKey: ["orders"], queryFn: getOrders, enabled: Boolean(data?.data) });
+  const wishlistQuery = useQuery({ queryKey: ["wishlist"], queryFn: getWishlist, enabled: Boolean(data?.data) });
 
   const updateMutation = useMutation({
     mutationFn: () =>
@@ -47,9 +40,19 @@ const ProfilePage = () => {
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
-    onError: (error: any) => {
-      toast.error(error?.message || "Failed to update profile");
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update profile");
     },
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: logout,
+    onSuccess: () => {
+      queryClient.clear();
+      navigate("/");
+      toast.success("You’re signed out");
+    },
+    onError: (error: unknown) => toast.error(error instanceof Error ? error.message : "Couldn’t sign out. Try again."),
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,12 +74,12 @@ const ProfilePage = () => {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-gray-50">
+      <main className="site-shell">
         <NavBar />
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-1/4" />
-            <div className="h-64 bg-gray-200 rounded" />
+        <div className="section-wrap profile-layout">
+          <div className="animate-pulse space-y-4 pt-8">
+            <div className="product-skeleton-line" />
+            <div className="product-skeleton" style={{ height: "300px" }} />
           </div>
         </div>
       </main>
@@ -85,20 +88,20 @@ const ProfilePage = () => {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-gray-50">
+      <main className="site-shell">
         <NavBar />
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <h1 className="text-2xl font-bold text-gray-900 mb-8">My Profile</h1>
+        <div className="section-wrap section-space profile-layout">
+          <h1 className="page-title">My Profile</h1>
           {isAuthError(error) ? (
             <AuthRequired
               title="Sign in to view your profile"
               message="Access your account details, orders and settings by signing in."
             />
           ) : (
-            <div className="text-center">
-              <p className="text-red-500 mb-2">Error loading profile</p>
-              <p className="text-gray-500">
-                {(error as any)?.message || "Please try again later"}
+            <div className="empty-state">
+              <h2 style={{ color: "var(--red)" }}>Error loading profile</h2>
+              <p>
+                {error instanceof Error ? error.message : "Please try again later"}
               </p>
             </div>
           )}
@@ -108,19 +111,26 @@ const ProfilePage = () => {
   }
 
   const user = data?.data;
+  const displayedData = isEditing ? formData : {
+    first_name: user?.first_name || "",
+    last_name: user?.last_name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+  };
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="site-shell">
       <NavBar />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-8">My Profile</h1>
+      <div className="section-wrap section-space profile-layout">
+        <span className="section-eyebrow">Your PhoneVault account</span>
+        <h1 className="page-title" style={{ marginBottom: 25 }}>My profile</h1>
 
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="profile-card">
           {/* Profile Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white">
+          <div className="profile-banner">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center overflow-hidden">
+              <div className="profile-avatar">
                 {user?.profile_image?.path ? (
                   <img
                     src={mediaUrl(user.profile_image.path)}
@@ -136,20 +146,33 @@ const ProfilePage = () => {
                   {user?.first_name} {user?.last_name}
                 </h2>
                 <p className="text-blue-100">{user?.email}</p>
-                <span className="inline-block mt-2 px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
+                <span className="profile-role">
                   {user?.role}
                 </span>
               </div>
             </div>
+            <button type="button" className="button-outline profile-logout" disabled={logoutMutation.isPending} onClick={() => logoutMutation.mutate()}>
+              <FiLogOut /> {logoutMutation.isPending ? "Signing out…" : "Sign out"}
+            </button>
           </div>
 
           {/* Profile Form */}
           <form onSubmit={handleSubmit} className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-gray-900">Personal Information</h3>
+              <h3 className="font-semibold ">Personal Information</h3>
               <button
                 type="button"
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => {
+                  if (!isEditing) {
+                    setFormData({
+                      first_name: user?.first_name || "",
+                      last_name: user?.last_name || "",
+                      email: user?.email || "",
+                      phone: user?.phone || "",
+                    });
+                  }
+                  setIsEditing((editing) => !editing);
+                }}
                 className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
               >
                 {isEditing ? (
@@ -166,13 +189,13 @@ const ProfilePage = () => {
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <label className="block text-sm font-medium  mb-1">First Name</label>
                 <div className="relative">
-                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 " />
                   <input
                     type="text"
                     name="first_name"
-                    value={formData.first_name}
+                    value={displayedData.first_name}
                     onChange={handleChange}
                     disabled={!isEditing}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
@@ -181,13 +204,13 @@ const ProfilePage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <label className="block text-sm font-medium  mb-1">Last Name</label>
                 <div className="relative">
-                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 " />
                   <input
                     type="text"
                     name="last_name"
-                    value={formData.last_name}
+                    value={displayedData.last_name}
                     onChange={handleChange}
                     disabled={!isEditing}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
@@ -196,13 +219,13 @@ const ProfilePage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium  mb-1">Email</label>
                 <div className="relative">
-                  <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 " />
                   <input
                     type="email"
                     name="email"
-                    value={formData.email}
+                    value={displayedData.email}
                     onChange={handleChange}
                     disabled
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
@@ -211,13 +234,13 @@ const ProfilePage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <label className="block text-sm font-medium  mb-1">Phone</label>
                 <div className="relative">
-                  <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 " />
                   <input
                     type="tel"
                     name="phone"
-                    value={formData.phone}
+                    value={displayedData.phone}
                     onChange={handleChange}
                     disabled={!isEditing}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
@@ -241,21 +264,15 @@ const ProfilePage = () => {
           </form>
 
           {/* Account Stats */}
-          <div className="border-t px-6 py-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Account Activity</h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-blue-600">0</p>
-                <p className="text-sm text-gray-500">Orders</p>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-blue-600">0</p>
-                <p className="text-sm text-gray-500">Wishlist Items</p>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-blue-600">0</p>
-                <p className="text-sm text-gray-500">Reviews</p>
-              </div>
+          <div className="profile-activity">
+            <h3>Keep an eye on your finds</h3>
+            <div className="profile-stats">
+              <Link to="/orders" className="profile-stat">
+                <strong>{ordersQuery.data?.data.length ?? 0}</strong><span>Orders placed</span>
+              </Link>
+              <Link to="/wishlist" className="profile-stat">
+                <strong>{Array.isArray(wishlistQuery.data?.data) ? wishlistQuery.data.data.length : 0}</strong><span>Saved finds</span>
+              </Link>
             </div>
           </div>
         </div>

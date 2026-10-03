@@ -1,17 +1,24 @@
 import LoginForm from "../../components/form/auth/login.form"
-import {Link} from "react-router"
+import { Link } from "react-router"
+import NavBar from "../../components/header"
 
 
 const LoginPage = () => {
     return (
-        <main className="min-h-screen w-full flex justify-center items-center tracking-wider">
-            <div className="min-h-80 w-100 border border-blue-500  rounded-md shadow p-4 ">
-                <h1 className="text-center text-3xl font-bold text-gray-800">Login</h1>
-                <p className="text-center text-[13px] font-semibold mt-1 text-gray-600">Fill the fill below.</p>
-
-                {/* login form */}
-                <LoginForm/>
-                <p className="text-sm mt-1 text-center">Don&apos;t have an account {""} <Link to={"/register"}> <span className="text-blue-500">Sign Up</span></Link> </p>
+        <main className="site-shell">
+            <NavBar />
+            <div className="form-page">
+                <div className="form-page-art">
+                    <span className="eyebrow">Your PhoneVault account</span>
+                    <h1>Good to see you again.</h1>
+                    <p>Your premium devices, saved finds, and order updates are right where you left them.</p>
+                </div>
+                <section className="form-panel">
+                    <h2>Welcome back</h2>
+                    <p>Sign in to pick up right where you left off.</p>
+                    <LoginForm />
+                    <p className="form-footnote">New around here? <Link to="/register">Create an account</Link></p>
+                </section>
             </div>
         </main>
     )

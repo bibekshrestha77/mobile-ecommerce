@@ -1,17 +1,23 @@
 import RegisterForm from "../../components/form/auth/register.form";
+import { Link } from "react-router";
+import NavBar from "../../components/header";
 
 const RegisterPage = () => {
   return (
-    <main className="min-h-screen w-full flex justify-center items-center tracking-wider">
-      <div className="min-h-80 w-100 border border-blue-500 rounded-md shadow p-4">
-        <h1 className="text-center text-3xl font-bold text-gray-800">
-          Register
-        </h1>
-        <p className="text-center text-[13px] font-semibold mt-1 text-gray-600">
-          Create your account below.
-        </p>
-
-        <RegisterForm />
+    <main className="site-shell">
+      <NavBar />
+      <div className="form-page">
+        <div className="form-page-art">
+          <span className="eyebrow">A little more personal</span>
+          <h1>Find the things that feel like you.</h1>
+          <p>Create an account to keep your favorites, follow orders, and make checkout a little easier.</p>
+        </div>
+        <section className="form-panel">
+          <h2>Make yourself at home</h2>
+          <p>A few details and you&apos;re all set.</p>
+          <RegisterForm />
+          <p className="form-footnote">Already have an account? <Link to="/login">Sign in</Link></p>
+        </section>
       </div>
     </main>
   );
